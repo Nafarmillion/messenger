@@ -57,8 +57,7 @@ export function LoginForm() {
   setError(err.response?.data?.message || t('auth.login.loginFailed'));
 } finally {
   setIsLoading(false);
-};
-
+}
   return (
     <div className="w-full max-w-md space-y-8">
       {/* Header */}
