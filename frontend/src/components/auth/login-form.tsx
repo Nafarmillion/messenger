@@ -31,32 +31,33 @@ export function LoginForm() {
     setIsLoading(true);
 
     try {
-      // Login - backend sets HttpOnly cookies automatically
-      const loginData = method === 'email'
-        ? { email: formData.email, password: formData.password }
-        : { phone: formData.phone, password: formData.password };
+  const loginData = method === 'email'
+    ? { email: formData.email, password: formData.password }
+    : { phone: formData.phone, password: formData.password };
 
-      const loginResponse = await (method === 'email'
-        ? authApi.loginWithEmail(loginData as any)
-        : authApi.loginWithPhone(loginData as any));
+  const loginResponse = await (method === 'email'
+    ? authApi.loginWithEmail(loginData as any)
+    : authApi.loginWithPhone(loginData as any));
 
-      // Get current user info
-      const userResponse = await usersApi.getMe();
-      setUser(userResponse.data);
+  const accessToken = loginResponse.data.accessToken;
 
-      // Connect to WebSocket using token from response (cookies are HttpOnly)
-      connect(loginResponse.data.accessToken);
+  if (accessToken) {
+    localStorage.setItem('accessToken', accessToken);
+  }
 
-      // Redirect to chats or the original requested page
-      const from = searchParams.get('from') || '/chats';
-      router.push(from);
-    } catch (err: any) {
-      console.error('Login error:', err);
-      setError(err.response?.data?.message || t('auth.login.loginFailed'));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const userResponse = await usersApi.getMe();
+  setUser(userResponse.data);
+
+  connect(accessToken);
+
+  const from = searchParams.get('from') || '/chats';
+  router.push(from);
+} catch (err: any) {
+  console.error('Login error:', err);
+  setError(err.response?.data?.message || t('auth.login.loginFailed'));
+} finally {
+  setIsLoading(false);
+};
 
   return (
     <div className="w-full max-w-md space-y-8">
