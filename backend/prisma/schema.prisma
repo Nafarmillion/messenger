@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Enums
+enum ChatRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+// User model
+model User {
+  id                     String    @id @default(uuid())
+  username               String    @unique
+  firstName              String    @map("first_name")
+  lastName               String    @map("last_name")
+  phone                  String?   @unique
+  email                  String?   @unique
+  passwordHash           String    @map("password_hash")
+  isOnline               Boolean   @default(false) @map("is_online")
+  lastSeen               DateTime  @default(now()) @map("last_seen")
+  settingShowStatus      Boolean   @default(true) @map("setting_show_status")
+  settingShowLastSeen    Boolean   @default(true) @map("setting_show_last_seen")
+  avatarUrl              String?   @map("avatar_url")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  sessions               Session[]
+  chatMemberships        ChatMember[]
+  sentMessages           Message[]
+  messagesRead           MessageRead[]
+  blockedBy              BlockedUser[] @relation("BlockedBy")
+  blockedUsers           BlockedUser[] @relation("BlockedUsers")
+
+  @@map("users")
+}
+
+// Blocked User model
+model BlockedUser {
+  id          String   @id @default(uuid())
+  blockerId   String   @map("blocker_id")
+  blockedId   String   @map("blocked_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  blocker     User     @relation("BlockedBy", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked     User     @relation("BlockedUsers", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@map("blocked_users")
+}
+
+// Session model (for refresh tokens)
+model Session {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  tokenHash   String   @map("token_hash")
+  expiresAt   DateTime @map("expires_at")
+  deviceInfo  String?  @map("device_info")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// Chat model
+model Chat {
+  id          String   @id @default(uuid())
+  isGroup     Boolean  @default(false) @map("is_group")
+  name        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  members     ChatMember[]
+  messages    Message[]
+
+  @@map("chats")
+}
+
+// Chat Member model (with roles for groups)
+model ChatMember {
+  id        String    @id @default(uuid())
+  chatId    String    @map("chat_id")
+  userId    String    @map("user_id")
+  role      ChatRole  @default(MEMBER)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  chat      Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+  @@map("chat_members")
+}
+
+// Message model
+model Message {
+  id         String   @id @default(uuid())
+  chatId     String   @map("chat_id")
+  senderId   String   @map("sender_id")
+  content    String
+  isEdited   Boolean  @default(false) @map("is_edited")
+  isPinned   Boolean  @default(false) @map("is_pinned")
+  replyToId  String?  @map("reply_to_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  chat       Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender     User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo    Message? @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies    Message[] @relation("MessageReplies")
+  reads      MessageRead[]
+
+  @@map("messages")
+}
+
+// Message Read status model
+model MessageRead {
+  id        String   @id @default(uuid())
+  messageId String   @map("message_id")
+  userId    String   @map("user_id")
+  readAt    DateTime @default(now()) @map("read_at")
+
+  // Relations
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@map("message_reads")
+}
